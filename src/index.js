@@ -9,6 +9,8 @@ const { clientOrigins, serverPort } = require("./config/env.dev");
 const { messagesRouter } = require("./messages/messages.router");
 const axios = require("axios");
 const { checkJwt } = require("./authz/check-jwt");
+
+const cascadeApi = "http://demo.cascade.localhost/api/v2";
 const emily_token = "f3dc0dee1fa5428b40353b177c74f370be5663ca6eeba3c3ae09c365bd5d3f3d";
 
 /**
@@ -17,6 +19,8 @@ const emily_token = "f3dc0dee1fa5428b40353b177c74f370be5663ca6eeba3c3ae09c365bd5
 
 const app = express();
 const apiRouter = express.Router();
+const audience = process.env.AUTH0_AUDIENCE;
+const domain = process.env.AUTH0_DOMAIN;
 
 /**
  *  App Configuration
@@ -40,10 +44,10 @@ app.use(function (err, req, res, next) {
  */
 
  let auth0Token = null;
- const getAuth0API = async () => {
+ const getAuth0APIToken = async () => {
      if (!auth0Token) {
          await axios({
-             url: `https://${process.env.AUTH0_DOMAIN}/oauth/token`,
+             url: `https://${domain}/oauth/token`,
              method: 'POST',
              headers: {'content-type': 'application/json'},
              data: {
@@ -68,16 +72,20 @@ app.use(function (err, req, res, next) {
  };
 
  
- getAuth0API();
+ getAuth0APIToken();
 
 
-/**
- * API - Auth0 Users
+/****************************************************************************
+ * AUTH0
+ ***************************************************************************/
+
+/** 
+ * Auth0 API - Auth0 Users
  */
  app.get("/api/users", checkJwt, (req, res) => {
   //console.log('here1', auth0Token);
 
-  axios.get(`https://matthewoh93.au.auth0.com/api/v2/users`, {
+  axios.get(`${audience}users`, {
       headers: {
           Authorization: auth0Token
       }
@@ -91,14 +99,14 @@ app.use(function (err, req, res, next) {
 
 
 /**
- * API - Auth0 get a user
+ * AUth0 API - Auth0 get a user
  */
  app.get("/api/users/:userId", checkJwt, (req, res) => {
   //console.log('here1', auth0Token);
 
   const { userId } = req.params;
 
-  axios.get(`https://matthewoh93.au.auth0.com/api/v2/users/${userId}`, {
+  axios.get(`${audience}users/${userId}`, {
       headers: {
           Authorization: auth0Token
       }
@@ -110,12 +118,79 @@ app.use(function (err, req, res, next) {
   });
 });
 
+/**
+ * Auth0 API - link a user
+ */
+//  app.post("/api/linkAccount/", checkJwt, (req, res) => {
+//   const { sub, link_with, accessToken } = req.body;
+//   axios.post(`${audience}users/${sub}/identities`, {
+//       headers: {
+//           Authorization: accessToken
+//       },
+//       data: {
+//         link_with: link_with
+//       }
+//   }).then((response) => {
+//       res.json(response.data);
+//   }).catch((error) => {
+//     console.log('here2', error);
+//       res.json(error.message);
+//   });
+// });
+
+//  app.post("/api/linkAccount/", checkJwt, (req, res) => {
+//   const { primaryUserId, secondaryProvider, secondaryUserId } = req.body;
+//   axios.post(`${audience}users/${primaryUserId}/identities`, {
+//       headers: {
+//           Authorization: auth0Token
+//       },
+//       data: {
+//         provider: secondaryProvider,
+//         user_id: secondaryUserId
+//       }
+//   }).then((response) => {
+//       res.json(response.data);
+//   }).catch((error) => {
+//     console.log('here2', error);
+//       res.json(error.message);
+//   });
+// });
+
+/**
+ * Auth0 API - update a user
+ */
+ app.patch("/api/users/", checkJwt, (req, res) => {
+  const { user_metadata, sub } = req.body;
+  const testData = {
+    user_metadata: user_metadata
+  }
+  axios({
+    url: `${audience}users/${sub}`,
+    headers: {
+          Authorization: auth0Token,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+      },
+    method: 'PATCH',
+    data: testData
+  }).then((response) => {
+      res.json(response.data);
+  }).catch((error) => {
+    console.log('here2', error);
+      res.json(error.message);
+  });
+});
+
+/****************************************************************************
+ * CASCADE
+ ***************************************************************************/
+
 
 /**
  * CascadeAPI: Get Cascade users
  */
  app.get("/api/cascade_users", checkJwt, (req, res) => {  
-  axios.get(`http://demo.cascade.localhost/api/v2/users?XDEBUG_SESSION_START=PHPSTORM`, {
+  axios.get(`${cascadeApi}/users?XDEBUG_SESSION_START=PHPSTORM`, {
       headers: {
           'Auth-Token': emily_token
       }
@@ -136,7 +211,7 @@ app.use(function (err, req, res, next) {
   const { email, jwt } = req.body;
 
   // I had to give token query parameter to use _COOKIE. See cascade >> apicontroller.php
-  axios.post(`http://demo.cascade.localhost/api/v2/invitations/check/${email}?XDEBUG_SESSION_START=PHPSTORM`, {
+  axios.post(`${cascadeApi}/invitations/check/${email}?XDEBUG_SESSION_START=PHPSTORM`, {
       headers: {
           'Auth0-Token': jwt,
           'Content-Type': 'application/json',
@@ -151,6 +226,11 @@ app.use(function (err, req, res, next) {
   });
 });
 
+
+
+/****************************************************************************
+ * SERVER
+ ***************************************************************************/
 
 /**
  * Server Activation
