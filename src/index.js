@@ -81,21 +81,41 @@ app.use(function (err, req, res, next) {
 
 /** 
  * Auth0 API - Auth0 Users
+ * 27/10/21. Note that checkJWT parameter is removed to support search users functionality when user is not logged in.
+ * However, you can set all-users-api still require a JWT from client side.
  */
- app.get("/api/users", checkJwt, (req, res) => {
+ app.get("/api/users", (req, res) => {
   //console.log('here1', auth0Token);
+  const {email} = req.query;
 
-  axios.get(`${audience}users`, {
+  if (email) {
+    // search users by email
+    axios.get(`${audience}users`, {
+      headers: {
+          Authorization: auth0Token
+      },
+      params: {q: `email:"${email}"`, search_engine: 'v3'},
+    }).then((response) => {
+        res.json(response.data);
+    }).catch((error) => {
+        res.json(error.message);
+    });
+  } else {
+    // get all users
+    axios.get(`${audience}users`, {
       headers: {
           Authorization: auth0Token
       }
-  }).then((response) => {
-      res.json(response.data);
-  }).catch((error) => {
-    console.log('here2', error);
-      res.json(error.message);
-  });
+    }).then((response) => {
+        res.json(response.data);
+    }).catch((error) => {
+      console.log('here2', error);
+        res.json(error.message);
+    });
+  }
+  
 });
+
 
 
 /**
@@ -119,42 +139,26 @@ app.use(function (err, req, res, next) {
 });
 
 /**
- * Auth0 API - link a user
+ * AUth0 API - Auth0 get a user's organizations
  */
-//  app.post("/api/linkAccount/", checkJwt, (req, res) => {
-//   const { sub, link_with, accessToken } = req.body;
-//   axios.post(`${audience}users/${sub}/identities`, {
-//       headers: {
-//           Authorization: accessToken
-//       },
-//       data: {
-//         link_with: link_with
-//       }
-//   }).then((response) => {
-//       res.json(response.data);
-//   }).catch((error) => {
-//     console.log('here2', error);
-//       res.json(error.message);
-//   });
-// });
+ app.get("/api/users/:userId/organizations", (req, res) => {
+  //console.log('here1', auth0Token);
 
-//  app.post("/api/linkAccount/", checkJwt, (req, res) => {
-//   const { primaryUserId, secondaryProvider, secondaryUserId } = req.body;
-//   axios.post(`${audience}users/${primaryUserId}/identities`, {
-//       headers: {
-//           Authorization: auth0Token
-//       },
-//       data: {
-//         provider: secondaryProvider,
-//         user_id: secondaryUserId
-//       }
-//   }).then((response) => {
-//       res.json(response.data);
-//   }).catch((error) => {
-//     console.log('here2', error);
-//       res.json(error.message);
-//   });
-// });
+  const { userId } = req.params;
+
+  axios.get(`${audience}users/${userId}/organizations`, {
+      headers: {
+          Authorization: auth0Token
+      }
+  }).then((response) => {
+      res.json(response.data);
+  }).catch((error) => {
+    console.log('here2', error);
+      res.json(error.message);
+  });
+});
+
+
 
 /**
  * Auth0 API - update a user
