@@ -159,6 +159,26 @@ app.use(function (err, req, res, next) {
 });
 
 
+/**
+ * AUth0 API - Auth0 organization detail
+ */
+ app.get("/api/organizations/:orgId", (req, res) => {
+  
+  const { orgId } = req.params;
+
+  axios.get(`${audience}organizations/${orgId}`, {
+      headers: {
+          Authorization: auth0Token
+      }
+  }).then((response) => {
+      res.json(response.data);
+  }).catch((error) => {
+    console.log('here2', error);
+      res.json(error.message);
+  });
+});
+
+
 
 /**
  * Auth0 API - update a user
